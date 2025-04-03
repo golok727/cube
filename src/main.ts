@@ -131,4 +131,4 @@ function draw() {
 gl.enable(gl.DEPTH_TEST);
 gl.enable(gl.CULL_FACE);
 program.bind();
-draw();
+requestAnimationFrame(draw);
