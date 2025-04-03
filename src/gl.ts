@@ -1,4 +1,4 @@
-import { Mat4 } from "./math";
+import { Mat3, Mat4 } from "./math";
 
 export class GlProgram {
 	program: WebGLProgram;
@@ -51,6 +51,18 @@ export class GlProgram {
 		return location;
 	}
 
+	setUniformMatrix3fv(
+		name: string,
+		transpose: boolean,
+		value: Float32Array | Mat3
+	) {
+		const location = this._getUniformLocation(name);
+		if (value instanceof Mat3) {
+			value = value.data;
+		}
+		this.gl.uniformMatrix3fv(location, transpose, value);
+	}
+
 	setUniformMatrix4fv(
 		name: string,
 		transpose: boolean,
@@ -61,6 +73,11 @@ export class GlProgram {
 			value = value.data;
 		}
 		this.gl.uniformMatrix4fv(location, transpose, value);
+	}
+
+	setUniform3fv(name: string, value: number[]) {
+		const location = this.gl.getUniformLocation(this.program, name);
+		this.gl.uniform3fv(location, value);
 	}
 
 	bind() {

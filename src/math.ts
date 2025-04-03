@@ -9,6 +9,19 @@ export class Mat4 {
 		this.data[15] = 1;
 	}
 
+	transformPoint(point: IVec3): IVec3 {
+		const x = point[0];
+		const y = point[1];
+		const z = point[2];
+		const w = 1;
+		const m = this.data;
+		return [
+			m[0] * x + m[4] * y + m[8] * z + m[12] * w,
+			m[1] * x + m[5] * y + m[9] * z + m[13] * w,
+			m[2] * x + m[6] * y + m[10] * z + m[14] * w,
+		];
+	}
+
 	translate(x: number, y: number, z: number) {
 		const mat = new Mat4();
 		mat.data[12] = x;
@@ -98,5 +111,213 @@ export class Mat4 {
 		mat.data[11] = -1;
 		mat.data[14] = (2 * far * near) / (near - far);
 		return mat;
+	}
+
+	transpose() {
+		const result = new Mat4();
+		for (let i = 0; i < 4; i++) {
+			for (let j = 0; j < 4; j++) {
+				result.data[i * 4 + j] = this.data[j * 4 + i];
+			}
+		}
+		return result;
+	}
+
+	invert() {
+		const result = new Mat4();
+		const m = this.data;
+		const r = result.data;
+
+		r[0] =
+			m[5] * m[10] * m[15] -
+			m[5] * m[11] * m[14] -
+			m[9] * m[6] * m[15] +
+			m[9] * m[7] * m[14] +
+			m[13] * m[6] * m[11] -
+			m[13] * m[7] * m[10];
+		r[4] =
+			-m[4] * m[10] * m[15] +
+			m[4] * m[11] * m[14] +
+			m[8] * m[6] * m[15] -
+			m[8] * m[7] * m[14] -
+			m[12] * m[6] * m[11] +
+			m[12] * m[7] * m[10];
+		r[8] =
+			m[4] * m[9] * m[15] -
+			m[4] * m[11] * m[13] -
+			m[8] * m[5] * m[15] +
+			m[8] * m[7] * m[13] +
+			m[12] * m[5] * m[11] -
+			m[12] * m[7] * m[9];
+		r[12] =
+			-m[4] * m[9] * m[14] +
+			m[4] * m[10] * m[13] +
+			m[8] * m[5] * m[14] -
+			m[8] * m[6] * m[13] -
+			m[12] * m[5] * m[10] +
+			m[12] * m[6] * m[9];
+
+		r[1] =
+			-m[1] * m[10] * m[15] +
+			m[1] * m[11] * m[14] +
+			m[9] * m[2] * m[15] -
+			m[9] * m[3] * m[14] -
+			m[13] * m[2] * m[11] +
+			m[13] * m[3] * m[10];
+		r[5] =
+			m[0] * m[10] * m[15] -
+			m[0] * m[11] * m[14] -
+			m[8] * m[2] * m[15] +
+			m[8] * m[3] * m[14] +
+			m[12] * m[2] * m[11] -
+			m[12] * m[3] * m[10];
+		r[9] =
+			-m[0] * m[9] * m[15] +
+			m[0] * m[11] * m[13] +
+			m[8] * m[1] * m[15] -
+			m[8] * m[3] * m[13] -
+			m[12] * m[1] * m[11] +
+			m[12] * m[3] * m[9];
+		r[13] =
+			m[0] * m[9] * m[14] -
+			m[0] * m[10] * m[13] -
+			m[8] * m[1] * m[14] +
+			m[8] * m[2] * m[13] +
+			m[12] * m[1] * m[10] -
+			m[12] * m[2] * m[9];
+
+		r[2] =
+			m[1] * m[6] * m[15] -
+			m[1] * m[7] * m[14] -
+			m[5] * m[2] * m[15] +
+			m[5] * m[3] * m[14] +
+			m[13] * m[2] * m[7] -
+			m[13] * m[3] * m[6];
+		r[6] =
+			-m[0] * m[6] * m[15] +
+			m[0] * m[7] * m[14] +
+			m[4] * m[2] * m[15] -
+			m[4] * m[3] * m[14] -
+			m[12] * m[2] * m[7] +
+			m[12] * m[3] * m[6];
+		r[10] =
+			m[0] * m[5] * m[15] -
+			m[0] * m[7] * m[13] -
+			m[4] * m[1] * m[15] +
+			m[4] * m[3] * m[13] +
+			m[12] * m[1] * m[7] -
+			m[12] * m[3] * m[5];
+		r[14] =
+			-m[0] * m[5] * m[14] +
+			m[0] * m[6] * m[13] +
+			m[4] * m[1] * m[14] -
+			m[4] * m[2] * m[13] -
+			m[12] * m[1] * m[6] +
+			m[12] * m[2] * m[5];
+
+		r[3] =
+			-m[1] * m[6] * m[11] +
+			m[1] * m[7] * m[10] +
+			m[5] * m[2] * m[11] -
+			m[5] * m[3] * m[10] -
+			m[9] * m[2] * m[7] +
+			m[9] * m[3] * m[6];
+		r[7] =
+			m[0] * m[6] * m[11] -
+			m[0] * m[7] * m[10] -
+			m[4] * m[2] * m[11] +
+			m[4] * m[3] * m[10] +
+			m[8] * m[2] * m[7] -
+			m[8] * m[3] * m[6];
+		r[11] =
+			-m[0] * m[5] * m[11] +
+			m[0] * m[7] * m[9] +
+			m[4] * m[1] * m[11] -
+			m[4] * m[3] * m[9] -
+			m[8] * m[1] * m[7] +
+			m[8] * m[3] * m[5];
+		r[15] =
+			m[0] * m[5] * m[10] -
+			m[0] * m[6] * m[9] -
+			m[4] * m[1] * m[10] +
+			m[4] * m[2] * m[9] +
+			m[8] * m[1] * m[6] -
+			m[8] * m[2] * m[5];
+
+		let det = m[0] * r[0] + m[1] * r[4] + m[2] * r[8] + m[3] * r[12];
+		if (det === 0) {
+			throw new Error("Matrix is not invertible");
+		}
+
+		det = 1.0 / det;
+		for (let i = 0; i < 16; i++) {
+			r[i] *= det;
+		}
+
+		return result;
+	}
+}
+
+export class Mat3 {
+	data = new Float32Array(3 * 3);
+	constructor() {
+		this.data[0] = 1;
+		this.data[4] = 1;
+		this.data[8] = 1;
+	}
+
+	static fromMat4(mat: Mat4) {
+		const result = new Mat3();
+		const m = mat.data;
+		const r = result.data;
+		r[0] = m[0];
+		r[1] = m[1];
+		r[2] = m[2];
+		r[3] = m[4];
+		r[4] = m[5];
+		r[5] = m[6];
+		r[6] = m[8];
+		r[7] = m[9];
+		r[8] = m[10];
+		return result;
+	}
+
+	transpose() {
+		const result = new Mat3();
+		for (let i = 0; i < 3; i++) {
+			for (let j = 0; j < 3; j++) {
+				result.data[i * 3 + j] = this.data[j * 3 + i];
+			}
+		}
+		return result;
+	}
+
+	inverse() {
+		const result = new Mat3();
+		const m = this.data;
+		const inv = result.data;
+
+		inv[0] = m[4] * m[8] - m[5] * m[7];
+		inv[1] = m[2] * m[7] - m[1] * m[8];
+		inv[2] = m[1] * m[5] - m[2] * m[4];
+		inv[3] = m[5] * m[6] - m[3] * m[8];
+		inv[4] = m[0] * m[8] - m[2] * m[6];
+		inv[5] = m[2] * m[3] - m[0] * m[5];
+		inv[6] = m[3] * m[7] - m[4] * m[6];
+		inv[7] = m[1] * m[6] - m[0] * m[7];
+		inv[8] = m[0] * m[4] - m[1] * m[3];
+
+		let det = m[0] * inv[0] + m[1] * inv[3] + m[2] * inv[6];
+
+		if (det === 0) {
+			throw new Error("Matrix is not invertible");
+		}
+
+		det = 1.0 / det;
+		for (let i = 0; i < 9; i++) {
+			inv[i] *= det;
+		}
+
+		return result;
 	}
 }

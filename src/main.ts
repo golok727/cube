@@ -1,5 +1,5 @@
 import { GlBuffer, GlProgram } from "./gl";
-import { Mat4 } from "./math";
+import { IVec3, Mat3, Mat4 } from "./math";
 import "./style.css";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
@@ -12,46 +12,65 @@ if (!gl) {
 }
 
 const vertexShaderSource = `
-  #version 300 es
-  precision highp float; 
+#version 300 es
+precision highp float; 
 
-  layout(location = 0) in vec3 a_Position; 
-  layout(location = 1) in vec4 a_Color;
-  uniform mat4 u_ModelViewMatrix;
-  uniform mat4 u_ProjectionMatrix;
+layout(location = 0) in vec3 a_Position; 
+layout(location = 1) in vec4 a_Color;
+layout(location = 2) in vec3 a_Normal;
 
-  out vec4 v_Color;
-  void main() {
-    v_Color = a_Color;
+uniform mat4 u_ModelViewMatrix;
+uniform mat4 u_ProjectionMatrix;
+uniform vec3 u_LightDirection;  
+uniform mat3 u_NormalMatrix;
+
+out vec4 v_Color; 
+out vec3 v_Light;
+
+void main() {
     gl_Position = u_ProjectionMatrix * u_ModelViewMatrix * vec4(a_Position, 1.0);
-  }
+    vec3 normal = u_NormalMatrix * a_Normal;
+
+    vec3 ambientLight = vec3(0.1);
+    vec3 lightDir = u_LightDirection;
+
+    v_Color = a_Color; 
+
+    vec3 directionalLightColor = vec3(1.0);
+    float directionalLightWeighting = max(dot(normal, lightDir), 0.0);
+
+    v_Light = ambientLight + (directionalLightColor * directionalLightWeighting);
+}
 
 `.trim();
 
 const fragmentShaderSource = `
-  #version 300 es
-  precision highp float;
+#version 300 es
+precision highp float;
 
-  in vec4 v_Color;
-  out vec4 outColor;
+in vec3 v_Light;
+in vec4 v_Color;
 
-  void main() {
-    outColor = v_Color;
-  }
+out vec4 outColor;
+
+void main() {
+    outColor = vec4(v_Color.rgb * v_Light, v_Color.a);
+}
 `.trim();
 
 // prettier-ignore
 const vertices = new Float32Array([
+    // pos, color, normal
     // Front face
-    -0.5, -0.5,  0.5,  1.0, 0.0, 0.0,  //  bottom left
-     0.5, -0.5,  0.5,  0.0, 1.0, 0.0,  //  bottom right
-     0.5,  0.5,  0.5,  0.0, 0.0, 1.0,  // top right
-    -0.5,  0.5,  0.5,  1.0, 1.0, 0.0,  // top left
-    // Back face
-    -0.5, -0.5, -0.5,  1.0, 0.0, 1.0,  // bottom left
-     0.5, -0.5, -0.5,  0.0, 1.0, 1.0,  // bottom right
-     0.5,  0.5, -0.5,  1.0, 1.0, 1.0,  // top right
-    -0.5,  0.5, -0.5,  0.5, 0.5, 0.5,  // top left
+    -0.5, -0.5,  0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0, 1.0,  // bottom left
+     0.5, -0.5,  0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0, 1.0,  // bottom right
+     0.5,  0.5,  0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0, 1.0,  // top right
+    -0.5,  0.5,  0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0, 1.0,  // top left
+    // Back face     
+    -0.5, -0.5, -0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0,-1.0,  // bottom left
+     0.5, -0.5, -0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0,-1.0,  // bottom right
+     0.5,  0.5, -0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0,-1.0,  // top right
+    -0.5,  0.5, -0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0,-1.0   // top left
 ]);
 
 // prettier-ignore
@@ -80,19 +99,29 @@ gl.bindVertexArray(vao);
 vbo.bind();
 ibo.bind();
 
-const STRIDE = 6 * vertices.BYTES_PER_ELEMENT;
+const STRIDE = 10 * vertices.BYTES_PER_ELEMENT;
 gl.enableVertexAttribArray(0);
 gl.enableVertexAttribArray(1);
+gl.enableVertexAttribArray(2);
 // position
 gl.vertexAttribPointer(0, 3, gl.FLOAT, false, STRIDE, 0);
 // color
 gl.vertexAttribPointer(
 	1,
-	3,
+	4,
 	gl.FLOAT,
 	false,
 	STRIDE,
 	3 * vertices.BYTES_PER_ELEMENT
+);
+// normal
+gl.vertexAttribPointer(
+	2, // location
+	3, // size (vec3)
+	gl.FLOAT, // type
+	false, // normalize
+	STRIDE, // stride
+	(3 + 4) * vertices.BYTES_PER_ELEMENT // offset
 );
 gl.bindVertexArray(null);
 
@@ -107,12 +136,16 @@ const viewMatrix = new Mat4().translate(0, 0, -2);
 
 let rotation = 0;
 
+const lightDirection: IVec3 = [0.85, 0.8, 0.75];
+const magnitude = Math.sqrt(
+	lightDirection.reduce((sum, val) => sum + val * val, 0)
+);
+const normalizedLightDirection = lightDirection.map((val) => val / magnitude);
 function draw() {
 	rotation += 0.01;
-
 	const modelMatrix = new Mat4().rotateY(rotation).rotateX(rotation * 0.5);
-
 	const modelViewMatrix = viewMatrix.multiply(modelMatrix);
+	const normalMatrix = Mat3.fromMat4(modelViewMatrix).transpose().inverse();
 
 	gl.clearColor(0.0, 0.0, 0.0, 1);
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -120,6 +153,8 @@ function draw() {
 	program.bind();
 	program.setUniformMatrix4fv("u_ModelViewMatrix", false, modelViewMatrix);
 	program.setUniformMatrix4fv("u_ProjectionMatrix", false, projectionMatrix);
+	program.setUniformMatrix3fv("u_NormalMatrix", false, normalMatrix);
+	program.setUniform3fv("u_LightDirection", normalizedLightDirection);
 
 	gl.bindVertexArray(vao);
 	gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
@@ -127,8 +162,12 @@ function draw() {
 	requestAnimationFrame(draw);
 }
 
+gl.enable(gl.BLEND);
+gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 // Initialize
 gl.enable(gl.DEPTH_TEST);
 gl.enable(gl.CULL_FACE);
+gl.cullFace(gl.BACK);
+gl.frontFace(gl.CCW);
 program.bind();
 requestAnimationFrame(draw);
