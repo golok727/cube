@@ -1,5 +1,23 @@
 export type IVec3 = [number, number, number];
+export type IVec4 = [number, number, number, number];
 
+export class Vec3 {
+	static mag(vec: IVec3): number {
+		return Math.hypot(vec[0], vec[1], vec[2]);
+	}
+
+	static magSq(vec: IVec3): number {
+		return vec[0] ** 2 + vec[1] ** 2 + vec[2] ** 2;
+	}
+
+	static normalize(v: IVec3): IVec3 {
+		const length = this.mag(v);
+		if (length === 0) {
+			return [0, 0, 0];
+		}
+		return [v[0] / length, v[1] / length, v[2] / length];
+	}
+}
 export class Mat4 {
 	data = new Float32Array(4 * 4);
 	constructor() {
@@ -256,6 +274,11 @@ export class Mat4 {
 
 		return result;
 	}
+
+	copy(other: Mat4): Mat4 {
+		this.data.set(other.data);
+		return this;
+	}
 }
 
 export class Mat3 {
@@ -320,4 +343,8 @@ export class Mat3 {
 
 		return result;
 	}
+}
+
+export function degToRad(degree: number) {
+	return (degree * Math.PI) / 180;
 }

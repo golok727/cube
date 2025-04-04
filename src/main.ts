@@ -1,5 +1,6 @@
+import { Mesh, addCube } from "./geo";
 import { GlBuffer, GlProgram } from "./gl";
-import { IVec3, Mat3, Mat4 } from "./math";
+import { IVec3, Mat3, Mat4, Vec3 } from "./math";
 import "./style.css";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
@@ -10,6 +11,38 @@ const gl = canvas.getContext("webgl2")!;
 if (!gl) {
 	throw new Error("Failed to get canvas context");
 }
+
+const mesh = new Mesh();
+addCube(mesh, {
+	position: [0.1, 0.0, 0],
+	size: 1,
+	color: [1, 0, 0, 1],
+});
+
+const positions =
+	"[ " +
+	mesh.vertices
+		.map((v) => v.position.map((v) => v.toFixed(2)))
+		.map((v) => `(${v.join(",")})`)
+		.join(", ") +
+	" ]";
+
+const normals =
+	"[ " +
+	mesh.vertices
+		.map((v) => v.normal.map((v) => v.toFixed(2)))
+		.map((v) => `(${v.join(",")})`)
+		.join(", ") +
+	" ]";
+
+navigator.clipboard.writeText(positions + "\n" + normals).then(
+	() => {
+		console.log("Copied to clipboard");
+	},
+	(err) => {
+		console.error("Could not copy text: ", err);
+	}
+);
 
 const vertexShaderSource = `
 #version 300 es
@@ -58,36 +91,12 @@ void main() {
 }
 `.trim();
 
-// prettier-ignore
-const vertices = new Float32Array([
-    // pos, color, normal
-    // Front face
-    -0.5, -0.5,  0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0, 1.0,  // bottom left
-     0.5, -0.5,  0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0, 1.0,  // bottom right
-     0.5,  0.5,  0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0, 1.0,  // top right
-    -0.5,  0.5,  0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0, 1.0,  // top left
-    // Back face     
-    -0.5, -0.5, -0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0,-1.0,  // bottom left
-     0.5, -0.5, -0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0,-1.0,  // bottom right
-     0.5,  0.5, -0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0,-1.0,  // top right
-    -0.5,  0.5, -0.5,  1.0, 1.0, 1.0, 1.0,   0.0, 0.0,-1.0   // top left
-]);
+const vertices = new Float32Array(
+	mesh.vertices.map((v) => [...v.position, ...v.color, ...v.normal]).flat()
+);
 
 // prettier-ignore
-const indices = new Uint16Array([
-    // Front face (counter-clockwise)
-    0, 1, 2,    0, 2, 3,
-    // Back face (counter-clockwise when looking from back)
-    5, 4, 7,    5, 7, 6,
-    // Top face (counter-clockwise when looking from top)
-    3, 2, 6,    3, 6, 7,
-    // Bottom face (counter-clockwise when looking from bottom)
-    4, 5, 1,    4, 1, 0,
-    // Right face (counter-clockwise when looking from right)
-    1, 5, 6,    1, 6, 2,
-    // Left face (counter-clockwise when looking from left)
-    4, 0, 3,    4, 3, 7
-]);
+const indices = new Uint16Array(mesh.indices);
 
 const program = new GlProgram(gl, vertexShaderSource, fragmentShaderSource);
 
@@ -136,14 +145,12 @@ const viewMatrix = new Mat4().translate(0, 0, -2);
 
 let rotation = 0;
 
-const lightDirection: IVec3 = [0.85, 0.8, 0.75];
-const magnitude = Math.sqrt(
-	lightDirection.reduce((sum, val) => sum + val * val, 0)
-);
-const normalizedLightDirection = lightDirection.map((val) => val / magnitude);
+// const lightDirection: IVec3 = Vec3.normalize([0.85, 0.8, 0.75]);
+const lightDirection: IVec3 = Vec3.normalize([0, 0, 10]);
 function draw() {
 	rotation += 0.01;
 	const modelMatrix = new Mat4().rotateY(rotation).rotateX(rotation * 0.5);
+
 	const modelViewMatrix = viewMatrix.multiply(modelMatrix);
 	const normalMatrix = Mat3.fromMat4(modelViewMatrix).transpose().inverse();
 
@@ -154,7 +161,7 @@ function draw() {
 	program.setUniformMatrix4fv("u_ModelViewMatrix", false, modelViewMatrix);
 	program.setUniformMatrix4fv("u_ProjectionMatrix", false, projectionMatrix);
 	program.setUniformMatrix3fv("u_NormalMatrix", false, normalMatrix);
-	program.setUniform3fv("u_LightDirection", normalizedLightDirection);
+	program.setUniform3fv("u_LightDirection", lightDirection);
 
 	gl.bindVertexArray(vao);
 	gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
