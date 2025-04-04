@@ -1,5 +1,5 @@
 import { Camera, CameraController } from "./camera";
-import { Mesh, addCube } from "./geo";
+import { Mesh, addCube, addPlane } from "./geo";
 import { GlBuffer, GlProgram } from "./gl";
 import { IVec3, Mat3, Mat4, Vec3 } from "./math";
 import "./style.css";
@@ -12,38 +12,6 @@ const gl = canvas.getContext("webgl2")!;
 if (!gl) {
 	throw new Error("Failed to get canvas context");
 }
-
-const mesh = new Mesh();
-addCube(mesh, {
-	position: [0.1, 0.0, 0],
-	size: 1,
-	color: [1, 0, 0, 1],
-});
-
-const positions =
-	"[ " +
-	mesh.vertices
-		.map((v) => v.position.map((v) => v.toFixed(2)))
-		.map((v) => `(${v.join(",")})`)
-		.join(", ") +
-	" ]";
-
-const normals =
-	"[ " +
-	mesh.vertices
-		.map((v) => v.normal.map((v) => v.toFixed(2)))
-		.map((v) => `(${v.join(",")})`)
-		.join(", ") +
-	" ]";
-
-navigator.clipboard.writeText(positions + "\n" + normals).then(
-	() => {
-		console.log("Copied to clipboard");
-	},
-	(err) => {
-		console.error("Could not copy text: ", err);
-	}
-);
 
 const vertexShaderSource = `
 #version 300 es
@@ -92,12 +60,18 @@ void main() {
 }
 `.trim();
 
+const mesh = new Mesh();
+addCube(mesh, {
+	position: [0.1, 0.0, 0],
+	size: 1,
+	color: [1, 0, 0, 1],
+});
+addPlane(mesh, 0, 0, -1, 4, 4, [0, 1, 1, 1], [Math.PI / 2, 0, 0]);
+
 const vertices = new Float32Array(
 	mesh.vertices.map((v) => [...v.position, ...v.color, ...v.normal]).flat()
 );
-
-// prettier-ignore
-const indices = new Uint16Array(mesh.indices);
+const indices = new Uint32Array(mesh.indices);
 
 const program = new GlProgram(gl, vertexShaderSource, fragmentShaderSource);
 
@@ -126,12 +100,12 @@ gl.vertexAttribPointer(
 );
 // normal
 gl.vertexAttribPointer(
-	2, // location
-	3, // size (vec3)
-	gl.FLOAT, // type
-	false, // normalize
-	STRIDE, // stride
-	(3 + 4) * vertices.BYTES_PER_ELEMENT // offset
+	2,
+	3,
+	gl.FLOAT,
+	false,
+	STRIDE,
+	(3 + 4) * vertices.BYTES_PER_ELEMENT
 );
 gl.bindVertexArray(null);
 
@@ -169,7 +143,7 @@ function draw() {
 	program.setUniform3fv("u_LightDirection", lightDirection);
 
 	gl.bindVertexArray(vao);
-	gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+	gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_INT, 0);
 
 	requestAnimationFrame(draw);
 }
