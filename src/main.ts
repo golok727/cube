@@ -153,7 +153,7 @@ function draw() {
 	const modelMatrix = new Mat4().rotateY(rotation).rotateX(rotation * 0.5);
 
 	const modelViewMatrix = camera.viewMatrix.multiply(modelMatrix);
-	const normalMatrix = Mat3.fromMat4(modelViewMatrix).transpose().inverse();
+	const normalMatrix = Mat3.fromMat4(modelViewMatrix).transpose().invert();
 
 	gl.clearColor(0.0, 0.0, 0.0, 1);
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

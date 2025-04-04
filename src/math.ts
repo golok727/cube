@@ -315,7 +315,7 @@ export class Mat3 {
 		return result;
 	}
 
-	inverse() {
+	invert() {
 		const result = new Mat3();
 		const m = this.data;
 		const inv = result.data;
