@@ -1,3 +1,4 @@
+import { Camera, CameraController } from "./camera";
 import { Mesh, addCube } from "./geo";
 import { GlBuffer, GlProgram } from "./gl";
 import { IVec3, Mat3, Mat4, Vec3 } from "./math";
@@ -134,24 +135,24 @@ gl.vertexAttribPointer(
 );
 gl.bindVertexArray(null);
 
-const projectionMatrix = Mat4.perspective(
-	Math.PI / 4,
-	canvas.width / canvas.height,
-	0.1,
-	100
-);
+const camera = new Camera({
+	position: [0, 0, -2],
+	aspect: canvas.width / canvas.height,
+});
 
-const viewMatrix = new Mat4().translate(0, 0, -2);
+const cameraController = new CameraController(camera);
+cameraController.init();
 
 let rotation = 0;
 
 // const lightDirection: IVec3 = Vec3.normalize([0.85, 0.8, 0.75]);
 const lightDirection: IVec3 = Vec3.normalize([0, 0, 10]);
 function draw() {
+	cameraController.update();
 	rotation += 0.01;
 	const modelMatrix = new Mat4().rotateY(rotation).rotateX(rotation * 0.5);
 
-	const modelViewMatrix = viewMatrix.multiply(modelMatrix);
+	const modelViewMatrix = camera.viewMatrix.multiply(modelMatrix);
 	const normalMatrix = Mat3.fromMat4(modelViewMatrix).transpose().inverse();
 
 	gl.clearColor(0.0, 0.0, 0.0, 1);
@@ -159,7 +160,11 @@ function draw() {
 
 	program.bind();
 	program.setUniformMatrix4fv("u_ModelViewMatrix", false, modelViewMatrix);
-	program.setUniformMatrix4fv("u_ProjectionMatrix", false, projectionMatrix);
+	program.setUniformMatrix4fv(
+		"u_ProjectionMatrix",
+		false,
+		camera.projectionMatrix
+	);
 	program.setUniformMatrix3fv("u_NormalMatrix", false, normalMatrix);
 	program.setUniform3fv("u_LightDirection", lightDirection);
 
@@ -176,5 +181,4 @@ gl.enable(gl.DEPTH_TEST);
 gl.enable(gl.CULL_FACE);
 gl.cullFace(gl.BACK);
 gl.frontFace(gl.CCW);
-program.bind();
 requestAnimationFrame(draw);
